@@ -1,0 +1,31 @@
+<Project>
+
+  <!--
+    Shared MSBuild properties applied to every project in the solution.
+    MSBuild walks up the directory tree and imports the first Directory.Build.props
+    it finds, so settings here flow into all four .csproj files automatically.
+    Each project still owns its own <TargetFramework>; everything below is policy
+    that should be identical across the whole codebase.
+  -->
+  <PropertyGroup>
+    <!-- Modern C#: opt into the latest language features the SDK supports. -->
+    <LangVersion>latest</LangVersion>
+
+    <!-- Nullable reference types on everywhere. The compiler now tracks which
+         references can be null and warns on unguarded dereferences. -->
+    <Nullable>enable</Nullable>
+
+    <!-- Implicit global usings (System, System.Linq, ...) so files stay terse. -->
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Treat warnings as errors: a warning is a bug we just haven't hit yet.
+         Keeps the build honest and the CI gate meaningful. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+
+    <!-- Deterministic, well-described assemblies. -->
+    <Authors>Enzo Tamayo</Authors>
+    <Product>CS2 Inventory Valuator</Product>
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+
+</Project>
