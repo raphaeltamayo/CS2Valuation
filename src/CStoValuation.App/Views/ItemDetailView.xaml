@@ -70,7 +70,7 @@
                 </Grid>
 
                 <!-- Price history chart -->
-                <TextBlock Text="PRICE HISTORY (30 DAYS)" FontSize="11" Margin="0,18,0,6"
+                <TextBlock Text="PRICE TREND" FontSize="11" Margin="0,18,0,6"
                            Foreground="{StaticResource MutedTextBrush}" />
 
                 <Grid Height="200">
@@ -78,7 +78,7 @@
                                         XAxes="{Binding XAxes}"
                                         YAxes="{Binding YAxes}"
                                         Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibility}}" />
-                    <TextBlock Text="No price history recorded yet — it builds up while the app runs."
+                    <TextBlock Text="No recent sales data to chart for this item."
                                Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"
                                VerticalAlignment="Center" HorizontalAlignment="Center" TextAlignment="Center">
                         <TextBlock.Style>

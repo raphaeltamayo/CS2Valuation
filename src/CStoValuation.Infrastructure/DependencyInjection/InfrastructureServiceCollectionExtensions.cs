@@ -85,6 +85,15 @@ public static class InfrastructureServiceCollectionExtensions
                 httpClientFactory.CreateClient(SkinportPriceService.HttpClientName),
                 provider.GetRequiredService<TimeProvider>());
         });
+
+        // Sales history shares the same configured Skinport client (Brotli + resilience).
+        services.AddSingleton<ISkinportSalesHistoryService>(provider =>
+        {
+            var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+            return new SkinportSalesHistoryService(
+                httpClientFactory.CreateClient(SkinportPriceService.HttpClientName),
+                provider.GetRequiredService<TimeProvider>());
+        });
     }
 
     private static void ConfigureSteamClient(HttpClient client)

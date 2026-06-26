@@ -1,0 +1,65 @@
+namespace CStoValuation.Infrastructure.Caching;
+
+/// <summary>
+/// A tiny time-to-live cache for expensive bulk fetches, keyed by string. A
+/// <see cref="SemaphoreSlim"/> collapses a burst of concurrent callers into a single fetch
+/// (async double-checked locking), and time is read through <see cref="TimeProvider"/> so
+/// expiry is deterministically testable. Shared by the Skinport price and sales-history
+/// services, which have identical 5-minute caching needs.
+/// </summary>
+internal sealed class TimedCache<TValue>
+{
+    private readonly TimeProvider _timeProvider;
+    private readonly TimeSpan _timeToLive;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly Dictionary<string, CacheEntry> _entries = new(StringComparer.OrdinalIgnoreCase);
+
+    public TimedCache(TimeProvider timeProvider, TimeSpan timeToLive)
+    {
+        _timeProvider = timeProvider;
+        _timeToLive = timeToLive;
+    }
+
+    /// <summary>Returns the cached value for <paramref name="key"/>, fetching it if stale/absent.</summary>
+    public async Task<TValue> GetOrAddAsync(
+        string key, Func<CancellationToken, Task<TValue>> factory, CancellationToken cancellationToken)
+    {
+        var now = _timeProvider.GetUtcNow();
+        if (TryGetFresh(key, now, out var cached))
+        {
+            return cached;
+        }
+
+        await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            // Re-check: another caller may have refreshed while we waited for the lock.
+            if (TryGetFresh(key, now, out cached))
+            {
+                return cached;
+            }
+
+            var fresh = await factory(cancellationToken).ConfigureAwait(false);
+            _entries[key] = new CacheEntry(now + _timeToLive, fresh);
+            return fresh;
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private bool TryGetFresh(string key, DateTimeOffset now, out TValue value)
+    {
+        if (_entries.TryGetValue(key, out var entry) && entry.ExpiresAtUtc > now)
+        {
+            value = entry.Value;
+            return true;
+        }
+
+        value = default!;
+        return false;
+    }
+
+    private sealed record CacheEntry(DateTimeOffset ExpiresAtUtc, TValue Value);
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "market_hash_name": "AK-47 | Redline (Field-Tested)",
+    "currency": "EUR",
+    "last_24_hours": { "min": 11.0, "max": 13.0, "avg": 12.0, "median": 12.0, "volume": 5 },
+    "last_7_days": { "min": 10.0, "max": 14.0, "avg": 12.5, "median": 12.4, "volume": 40 },
+    "last_30_days": { "min": 9.0, "max": 15.0, "avg": 11.0, "median": 11.0, "volume": 200 },
+    "last_90_days": { "min": 8.0, "max": 16.0, "avg": 10.5, "median": 10.0, "volume": 600 }
+  },
+  {
+    "market_hash_name": "No Sales Item",
+    "currency": "EUR",
+    "last_24_hours": { "min": null, "max": null, "avg": null, "median": null, "volume": 0 },
+    "last_7_days": { "min": null, "max": null, "avg": null, "median": null, "volume": 0 },
+    "last_30_days": { "min": null, "max": null, "avg": null, "median": null, "volume": 0 },
+    "last_90_days": { "min": null, "max": null, "avg": null, "median": null, "volume": 0 }
+  }
+]

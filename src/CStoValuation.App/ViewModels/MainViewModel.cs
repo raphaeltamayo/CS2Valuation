@@ -31,9 +31,14 @@ internal sealed partial class MainViewModel : ObservableObject
     private readonly IValuationService _valuationService;
     private readonly IInventoryRepository _inventoryRepository;
     private readonly ISteamSignIn _steamSignIn;
+    private readonly ISkinportSalesHistoryService _salesHistoryService;
     private readonly FeeModel _feeModel = FeeModel.Default;
 
     private string? _lastResolvedId;
+
+    // The latest bulk sales history, sliced per item to drive the detail chart on selection.
+    private IReadOnlyDictionary<string, ItemSalesHistory> _salesHistory =
+        new Dictionary<string, ItemSalesHistory>();
 
     // Per-load flags that shape the final status message (set during a load, read at the end).
     private bool _loadedFromCache;
@@ -76,6 +81,7 @@ internal sealed partial class MainViewModel : ObservableObject
         IValuationService valuationService,
         IInventoryRepository inventoryRepository,
         ISteamSignIn steamSignIn,
+        ISkinportSalesHistoryService salesHistoryService,
         ItemDetailViewModel detail,
         MoversViewModel movers)
     {
@@ -85,6 +91,7 @@ internal sealed partial class MainViewModel : ObservableObject
         _valuationService = valuationService;
         _inventoryRepository = inventoryRepository;
         _steamSignIn = steamSignIn;
+        _salesHistoryService = salesHistoryService;
         Detail = detail;
         Movers = movers;
 
@@ -111,7 +118,8 @@ internal sealed partial class MainViewModel : ObservableObject
     partial void OnSearchTextChanged(string value) => ItemsView.Refresh();
 
     // Selecting a row loads its detail panel; the detail VM manages its own loading state.
-    partial void OnSelectedItemChanged(ValuedItemViewModel? value) => _ = Detail.LoadAsync(value);
+    partial void OnSelectedItemChanged(ValuedItemViewModel? value) =>
+        _ = Detail.LoadAsync(value, value is null ? null : _salesHistory.GetValueOrDefault(value.Name));
 
     [RelayCommand(CanExecute = nameof(CanConnect))]
     private Task ConnectAsync() => LoadAsync(useCachedId: false);
@@ -161,7 +169,10 @@ internal sealed partial class MainViewModel : ObservableObject
 
             var valuation = _valuationService.Value(inventory, prices, _feeModel);
             ShowValuation(valuation);
-            await Movers.LoadAsync(valuation.Items.Select(item => item.Item.MarketHashName));
+
+            // Instant movers + detail trend from Skinport's aggregated sales history.
+            _salesHistory = await FetchSalesHistoryAsync();
+            Movers.Load(_salesHistory, valuation.Items.Select(item => item.Item.MarketHashName));
         }
         catch (PrivateInventoryException)
         {
@@ -237,6 +248,19 @@ internal sealed partial class MainViewModel : ObservableObject
             // unexpected body) degrades to an unpriced — but still visible — inventory.
             _pricesUnavailable = true;
             return new Dictionary<string, PriceQuote>();
+        }
+    }
+
+    private async Task<IReadOnlyDictionary<string, ItemSalesHistory>> FetchSalesHistoryAsync()
+    {
+        try
+        {
+            return await _salesHistoryService.GetSalesHistoryAsync(Currency);
+        }
+        catch (Exception)
+        {
+            // Movers/trend are a bonus — never let their absence affect the main flow.
+            return new Dictionary<string, ItemSalesHistory>();
         }
     }
 

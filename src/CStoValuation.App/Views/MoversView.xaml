@@ -20,8 +20,8 @@
             <!-- Empty state -->
             <TextBlock Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Center"
                        Foreground="{StaticResource MutedTextBrush}"
-                       Text="Movers appear once a few days of price history have been recorded.">
-                <TextBlock.Style>
+                       Text="No movers to show yet — connect an inventory with items that have recent sales.">
+    <TextBlock.Style>
                     <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
                         <Setter Property="Visibility" Value="Visible" />
                         <Style.Triggers>

@@ -1,57 +1,47 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CStoValuation.Core.Abstractions;
+using CStoValuation.Core.Models;
 
 namespace CStoValuation.App.ViewModels;
 
 /// <summary>
-/// Ranks owned items by their percentage price change over a recent window — the simplest form
-/// of momentum / "biggest movers". It reads the history the background service has recorded, so
-/// the list fills out over time rather than on the very first import.
+/// Ranks owned items by recent price momentum — the "biggest movers". The change is measured
+/// from each item's trailing 30-day average to its trailing 7-day average (Skinport sales
+/// history), so the ranking is available <i>instantly</i> on first import, with no waiting for
+/// the app to accumulate its own snapshots.
 /// </summary>
 internal sealed partial class MoversViewModel : ObservableObject
 {
     private const string Currency = "EUR";
     private const int MaxMovers = 12;
-    private static readonly TimeSpan Window = TimeSpan.FromDays(7);
-
-    private readonly IPriceSnapshotRepository _snapshotRepository;
-    private readonly TimeProvider _timeProvider;
 
     [ObservableProperty]
     private bool _hasMovers;
 
-    public MoversViewModel(IPriceSnapshotRepository snapshotRepository, TimeProvider? timeProvider = null)
-    {
-        _snapshotRepository = snapshotRepository;
-        _timeProvider = timeProvider ?? TimeProvider.System;
-    }
-
     public ObservableCollection<MoverViewModel> Movers { get; } = [];
 
-    /// <summary>Recomputes movers for the given owned items.</summary>
-    public async Task LoadAsync(IEnumerable<string> ownedNames)
+    /// <summary>Recomputes movers for the owned items from the supplied sales history.</summary>
+    public void Load(IReadOnlyDictionary<string, ItemSalesHistory> salesHistory, IEnumerable<string> ownedNames)
     {
-        var since = _timeProvider.GetUtcNow() - Window;
         var computed = new List<MoverViewModel>();
 
         foreach (var name in ownedNames.Distinct())
         {
-            var history = await _snapshotRepository.GetHistoryAsync(name, since);
-            if (history.Count < 2)
-            {
-                continue; // need at least two points to measure a change
-            }
-
-            var first = history[0].Price;
-            var last = history[^1].Price;
-            if (first == 0m)
+            if (!salesHistory.TryGetValue(name, out var history))
             {
                 continue;
             }
 
-            var changePercent = (last - first) / first * 100m;
-            computed.Add(new MoverViewModel(name, changePercent, last, Currency));
+            var recent = history.Last7Days.Average;
+            var baseline = history.Last30Days.Average;
+            if (recent is not { } recentAvg || baseline is not { } baselineAvg || baselineAvg <= 0m)
+            {
+                continue; // need both windows to measure a change
+            }
+
+            var changePercent = (recentAvg - baselineAvg) / baselineAvg * 100m;
+            var latest = history.Last24Hours.Average ?? recentAvg;
+            computed.Add(new MoverViewModel(name, changePercent, latest, Currency));
         }
 
         Movers.Clear();

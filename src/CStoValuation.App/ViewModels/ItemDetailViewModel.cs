@@ -2,6 +2,7 @@ using System.Net.Http;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CStoValuation.App.Presentation;
 using CStoValuation.Core.Abstractions;
+using CStoValuation.Core.Models;
 using LiveChartsCore;
 using LiveChartsCore.Defaults;
 using LiveChartsCore.SkiaSharpView;
@@ -73,7 +74,7 @@ internal sealed partial class ItemDetailViewModel : ObservableObject
     public Axis[] YAxes { get; }
 
     /// <summary>Loads detail for the selected row, or clears the panel when nothing is selected.</summary>
-    public async Task LoadAsync(ValuedItemViewModel? item)
+    public async Task LoadAsync(ValuedItemViewModel? item, ItemSalesHistory? salesHistory)
     {
         if (item is null)
         {
@@ -87,29 +88,59 @@ internal sealed partial class ItemDetailViewModel : ObservableObject
         SkinportGrossText = item.UnitGrossText;
         SkinportNetText = item.UnitNetText;
 
-        await LoadHistoryAsync(item.Name);
+        await LoadHistoryAsync(item.Name, salesHistory);
         await LoadSteamMarketAsync(item.Name);
     }
 
-    private async Task LoadHistoryAsync(string marketHashName)
+    private async Task LoadHistoryAsync(string marketHashName, ItemSalesHistory? salesHistory)
     {
+        // Prefer the app's own fine-grained snapshots once it has accumulated a couple; until
+        // then, fall back to the instant trend from Skinport's trailing-window sales history.
         var since = _timeProvider.GetUtcNow() - HistoryWindow;
-        var points = await _snapshotRepository.GetHistoryAsync(marketHashName, since);
+        var snapshots = await _snapshotRepository.GetHistoryAsync(marketHashName, since);
 
-        HasHistory = points.Count > 0;
+        var points = snapshots.Count >= 2
+            ? snapshots.Select(p => new DateTimePoint(p.DateUtc.UtcDateTime, (double)p.Price)).ToArray()
+            : BuildTrendPoints(salesHistory);
+
+        HasHistory = points.Length >= 2;
         Series =
         [
             new LineSeries<DateTimePoint>
             {
-                Values = points
-                    .Select(point => new DateTimePoint(point.DateUtc.UtcDateTime, (double)point.Price))
-                    .ToArray(),
+                Values = points,
                 Name = marketHashName,
-                GeometrySize = 0,
+                GeometrySize = 4,
                 Fill = null,
                 Stroke = new SolidColorPaint(SKColor.Parse("#4B8BF5")) { StrokeThickness = 2 },
             },
         ];
+    }
+
+    /// <summary>
+    /// Turns Skinport's trailing windows into a coarse 4-point trend (≈90d, 30d, 7d, now),
+    /// using each window's average (median as a fallback). Points with no sales are skipped.
+    /// </summary>
+    private DateTimePoint[] BuildTrendPoints(ItemSalesHistory? salesHistory)
+    {
+        if (salesHistory is null)
+        {
+            return [];
+        }
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
+        var candidates = new (DateTime At, decimal? Value)[]
+        {
+            (now.AddDays(-90), salesHistory.Last90Days.Average ?? salesHistory.Last90Days.Median),
+            (now.AddDays(-30), salesHistory.Last30Days.Average ?? salesHistory.Last30Days.Median),
+            (now.AddDays(-7), salesHistory.Last7Days.Average ?? salesHistory.Last7Days.Median),
+            (now, salesHistory.Last24Hours.Average ?? salesHistory.Last24Hours.Median),
+        };
+
+        return candidates
+            .Where(point => point.Value is not null)
+            .Select(point => new DateTimePoint(point.At, (double)point.Value!.Value))
+            .ToArray();
     }
 
     private async Task LoadSteamMarketAsync(string marketHashName)

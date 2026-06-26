@@ -31,8 +31,10 @@ _Screenshots live in [`docs/`](docs/) — run the app (below) and add `overview.
   per line and a prominent **portfolio total**.
 - **Sort & filter** the holdings; unpriced items are shown honestly as `—`.
 - **Caches** to local SQLite for instant startup and an **offline fallback**; manual **Refresh**.
-- **Price history & movers**: a background service snapshots owned-item prices over time, feeding a
-  per-item **price chart** (LiveCharts2) and a **biggest-movers** view.
+- **Price history & movers, instantly**: a single Skinport *sales-history* call (trailing
+  24h/7d/30d/90d windows) powers a per-item **price trend chart** (LiveCharts2) and a
+  **biggest-movers** ranking with no waiting. A background service also records fine-grained
+  snapshots over time, which the chart prefers once enough have accumulated.
 - **Second opinion on demand**: the detail panel also pulls the **Steam Market** price + trade
   **volume** (a liquidity signal) for the selected item.
 - Friendly, actionable error when an inventory is **private**.
