@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-test:
+    # WPF (net8.0-windows) only builds on Windows, so the whole solution is built here.
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # 8.0.x runs the net8 tests; 9.0.x satisfies global.json (the dev SDK).
+          dotnet-version: |
+            8.0.x
+            9.0.x
+
+      - name: Restore
+        run: dotnet restore CStoValuation.sln
+
+      - name: Build (warnings are errors)
+        run: dotnet build CStoValuation.sln --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test CStoValuation.sln --no-build --configuration Release --verbosity normal
