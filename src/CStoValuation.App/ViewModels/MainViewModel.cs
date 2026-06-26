@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CStoValuation.App.Authentication;
 using CStoValuation.Core.Abstractions;
 using CStoValuation.Core.Exceptions;
 using CStoValuation.Core.Models;
@@ -29,6 +30,7 @@ internal sealed partial class MainViewModel : ObservableObject
     private readonly ISkinportPriceService _priceService;
     private readonly IValuationService _valuationService;
     private readonly IInventoryRepository _inventoryRepository;
+    private readonly ISteamSignIn _steamSignIn;
     private readonly FeeModel _feeModel = FeeModel.Default;
 
     private string? _lastResolvedId;
@@ -41,6 +43,7 @@ internal sealed partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsNotBusy))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SignInWithSteamCommand))]
     private bool _isBusy;
 
     [ObservableProperty]
@@ -64,13 +67,15 @@ internal sealed partial class MainViewModel : ObservableObject
         ISteamInventoryService inventoryService,
         ISkinportPriceService priceService,
         IValuationService valuationService,
-        IInventoryRepository inventoryRepository)
+        IInventoryRepository inventoryRepository,
+        ISteamSignIn steamSignIn)
     {
         _idResolver = idResolver;
         _inventoryService = inventoryService;
         _priceService = priceService;
         _valuationService = valuationService;
         _inventoryRepository = inventoryRepository;
+        _steamSignIn = steamSignIn;
 
         // A view over the same collection gives us live sort + filter without copying data.
         ItemsView = CollectionViewSource.GetDefaultView(Items);
@@ -94,6 +99,20 @@ internal sealed partial class MainViewModel : ObservableObject
     private Task ConnectAsync() => LoadAsync(useCachedId: false);
 
     private bool CanConnect() => !IsBusy && !string.IsNullOrWhiteSpace(SteamInput);
+
+    [RelayCommand(CanExecute = nameof(IsNotBusy))]
+    private async Task SignInWithSteamAsync()
+    {
+        var steamId = await _steamSignIn.SignInAsync();
+        if (steamId is null)
+        {
+            return;
+        }
+
+        // Sign-in hands us a canonical id; feed it through the normal load path.
+        SteamInput = steamId;
+        await LoadAsync(useCachedId: false);
+    }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private Task RefreshAsync() => LoadAsync(useCachedId: true);

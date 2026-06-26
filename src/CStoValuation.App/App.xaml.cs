@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using CStoValuation.App.Authentication;
 using CStoValuation.App.ViewModels;
 using CStoValuation.App.Views;
 using CStoValuation.Infrastructure.DependencyInjection;
@@ -58,6 +59,9 @@ internal static class HostBuilderExtensions
     public static HostApplicationBuilder ConfigureServices(this HostApplicationBuilder builder)
     {
         builder.Services.AddInfrastructure($"Data Source={ResolveDatabasePath()}");
+
+        // The interactive Steam OpenID sign-in gesture (shows the WebView2 dialog).
+        builder.Services.AddSingleton<ISteamSignIn, SteamOpenIdSignIn>();
 
         // View-models are transient; the single shell window is a singleton.
         builder.Services.AddTransient<MainViewModel>();
