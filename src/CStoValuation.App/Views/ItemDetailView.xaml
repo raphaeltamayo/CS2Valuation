@@ -74,9 +74,11 @@
                            Foreground="{StaticResource MutedTextBrush}" />
 
                 <Grid Height="200">
-                    <lvc:CartesianChart Series="{Binding Series}"
+                    <lvc:CartesianChart x:Name="TrendChart"
+                                        Series="{Binding Series}"
                                         XAxes="{Binding XAxes}"
                                         YAxes="{Binding YAxes}"
+                                        Background="Transparent"
                                         Visibility="{Binding HasHistory, Converter={StaticResource BoolToVisibility}}" />
                     <TextBlock Text="No recent sales data to chart for this item."
                                Foreground="{StaticResource MutedTextBrush}" TextWrapping="Wrap"

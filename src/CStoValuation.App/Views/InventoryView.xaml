@@ -82,15 +82,15 @@
                       EnableRowVirtualization="True"
                       ColumnHeaderStyle="{StaticResource GridHeaderStyle}"
                       CellStyle="{StaticResource GridCellStyle}"
-                      RowHeight="44">
+                      RowHeight="54">
                 <DataGrid.Columns>
 
-                    <!-- Icon -->
-                    <DataGridTemplateColumn Header="" Width="56" CanUserSort="False">
+                    <!-- Icon (CS2 weapon icons are wide, so give them room) -->
+                    <DataGridTemplateColumn Header="" Width="96" CanUserSort="False">
                         <DataGridTemplateColumn.CellTemplate>
                             <DataTemplate>
                                 <Image behaviors:ImageLoader.SourceUrl="{Binding ImageUrl}"
-                                       Width="44" Height="33" Stretch="Uniform" />
+                                       Width="84" Height="48" Stretch="Uniform" />
                             </DataTemplate>
                         </DataGridTemplateColumn.CellTemplate>
                     </DataGridTemplateColumn>

@@ -1,25 +1,21 @@
-using CStoValuation.App.Presentation;
-
 namespace CStoValuation.App.ViewModels;
 
 /// <summary>
-/// One ranked row in the movers list: an owned item and how its price has moved over the
-/// chosen window. Immutable — recomputed wholesale each time movers are refreshed.
+/// One ranked row in the movers list. The headline <see cref="ValueText"/> is already
+/// formatted for whichever metric is currently selected (percentage, per-unit, or total).
 /// </summary>
 internal sealed class MoverViewModel
 {
-    public MoverViewModel(string name, decimal changePercent, decimal latestPrice, string currency)
+    public MoverViewModel(string name, string valueText, bool isPositive, string latestPriceText)
     {
         Name = name;
-        ChangePercent = changePercent;
-        IsPositive = changePercent >= 0;
-        ChangeText = $"{(IsPositive ? "+" : string.Empty)}{changePercent:N1}%";
-        LatestPriceText = MoneyFormatter.Format(latestPrice, currency);
+        ValueText = valueText;
+        IsPositive = isPositive;
+        LatestPriceText = latestPriceText;
     }
 
     public string Name { get; }
-    public decimal ChangePercent { get; }
+    public string ValueText { get; }
     public bool IsPositive { get; }
-    public string ChangeText { get; }
     public string LatestPriceText { get; }
 }

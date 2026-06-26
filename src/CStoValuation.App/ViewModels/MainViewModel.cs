@@ -172,7 +172,7 @@ internal sealed partial class MainViewModel : ObservableObject
 
             // Instant movers + detail trend from Skinport's aggregated sales history.
             _salesHistory = await FetchSalesHistoryAsync();
-            Movers.Load(_salesHistory, valuation.Items.Select(item => item.Item.MarketHashName));
+            Movers.Load(_salesHistory, Items);
         }
         catch (PrivateInventoryException)
         {

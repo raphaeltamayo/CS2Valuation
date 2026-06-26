@@ -14,8 +14,20 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <TextBlock Grid.Row="0" Text="BIGGEST MOVERS (7 DAYS)" FontSize="11" Margin="0,0,0,8"
-                       Foreground="{StaticResource MutedTextBrush}" />
+            <Grid Grid.Row="0" Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="BIGGEST MOVERS (7D vs 30D)" FontSize="11"
+                           VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
+                <ComboBox Grid.Column="1" Width="120"
+                          ItemsSource="{Binding Metrics}"
+                          DisplayMemberPath="Label"
+                          SelectedValuePath="Value"
+                          SelectedValue="{Binding SelectedMetric}"
+                          ToolTip="Rank movers by % change, per-unit value, or total value" />
+            </Grid>
 
             <!-- Empty state -->
             <TextBlock Grid.Row="1" TextWrapping="Wrap" VerticalAlignment="Center" TextAlignment="Center"
@@ -48,12 +60,12 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="64" />
+                                <ColumnDefinition Width="84" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
                             <TextBlock Grid.Column="1" Text="{Binding LatestPriceText}" Margin="8,0"
                                        Foreground="{StaticResource MutedTextBrush}" />
-                            <TextBlock Grid.Column="2" Text="{Binding ChangeText}" HorizontalAlignment="Right"
+                            <TextBlock Grid.Column="2" Text="{Binding ValueText}" HorizontalAlignment="Right"
                                        FontWeight="SemiBold">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
