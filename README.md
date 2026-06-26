@@ -5,12 +5,13 @@ Counter-Strike 2 inventory and works out what it is actually worth. It shows the
 of everything you own and, more usefully, what you would really walk away with after
 marketplace fees.
 
-I built it as a portfolio piece. A CS2 skin inventory behaves a lot like a small trading
-portfolio, so it is a nice way to show both a modern .NET desktop app and a bit of finance
-thinking. You value the holdings, mark them to market, account for fees and liquidity, and keep
-an eye on how prices move over time.
+![V1.0.0_Home.png](docs/V1.0.0_Home.png)
 
-## What it does
+## Installation
+
+Go to the release page and download the latest release .zip file containing the application executable, you should be able to run it on your computer. (Confirmed working on Windows 11)
+
+## How to use
 
 You paste a SteamID or a profile URL, or sign in through Steam, and the app imports your
 inventory with images and quantities. It prices everything against live Skinport data and shows
@@ -24,14 +25,12 @@ Everything is cached to a local SQLite database, so the app opens straight away 
 inventory and still works when the network is down. If an inventory is private it tells you how
 to make it public instead of just failing.
 
-## How it is built
+## Codebase Architecture
 
-There are four projects. Core holds the domain model and the valuation logic and depends on
+Application is separated in four modules. Core holds the domain model and the valuation logic and depends on
 nothing else. Infrastructure has the HTTP clients for Steam and Skinport, the EF Core and SQLite
-data layer, and a small background service that records prices over time. App is the WPF user
-interface, written with the MVVM pattern using CommunityToolkit.Mvvm and wired together with
-dependency injection through the generic host. There is also a test project. Dependencies only
-point inwards, which keeps the domain clean and easy to test.
+data layer, and a small background service that records prices over time. ![img.png](img.png) MVVM pattern using CommunityToolkit.Mvvm and wired together with
+dependency injection through the generic host. There is also a test project.
 
 A couple of notes on where the data comes from. Skinport gives current prices and recent sales
 history, each in a single bulk call, so valuations and movers are available right away. The
@@ -40,7 +39,7 @@ rate limited. The day by day price chart comes from Steam's own price history, w
 answers when you are signed in, so the app reuses the session from the sign in window for those
 requests.
 
-## Running it
+##  Development setup
 
 You need the .NET SDK (the version is pinned in global.json) on Windows, plus the WebView2
 runtime for the Steam sign in window, which is already installed on most Windows 10 and 11
@@ -56,7 +55,7 @@ Paste a public SteamID or profile URL and click Connect, or use Sign in through 
 default currency is EUR and the seller fee defaults to 8 percent, both of which live in one
 place and are easy to change.
 
-## Continuous integration
+## CICD
 
 Every push and pull request builds the whole solution and runs the tests on Windows through
 GitHub Actions.
