@@ -23,7 +23,6 @@
                            VerticalAlignment="Center" Foreground="{StaticResource MutedTextBrush}" />
                 <ComboBox Grid.Column="1" Width="120"
                           ItemsSource="{Binding Metrics}"
-                          DisplayMemberPath="Label"
                           SelectedValuePath="Value"
                           SelectedValue="{Binding SelectedMetric}"
                           ToolTip="Rank movers by % change, per-unit value, or total value" />

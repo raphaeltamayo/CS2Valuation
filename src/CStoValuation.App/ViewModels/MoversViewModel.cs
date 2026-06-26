@@ -20,7 +20,11 @@ internal enum MoverMetric
 }
 
 /// <summary>A selectable metric with its display label (for the dropdown).</summary>
-internal sealed record MetricOption(MoverMetric Value, string Label);
+internal sealed record MetricOption(MoverMetric Value, string Label)
+{
+    // The ComboBox shows this directly, so render as the label rather than the record default.
+    public override string ToString() => Label;
+}
 
 /// <summary>
 /// Ranks owned items by recent price momentum ("biggest movers"), measured from each item's

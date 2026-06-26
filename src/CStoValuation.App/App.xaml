@@ -89,6 +89,25 @@
                 </Setter>
             </Style>
 
+            <!-- ===== Dark tooltips ===== -->
+            <Style TargetType="ToolTip">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+                <Setter Property="Background" Value="{StaticResource SurfaceMutedBrush}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Padding" Value="10,6" />
+                <Setter Property="HasDropShadow" Value="False" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ToolTip">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                    Padding="{TemplateBinding Padding}" MaxWidth="280">
+                                <ContentPresenter />
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+
             <!-- ===== Thin dark scrollbar (used by the grid and the movers list) ===== -->
             <Style x:Key="ScrollPageButton" TargetType="RepeatButton">
                 <Setter Property="OverridesDefaultStyle" Value="True" />
