@@ -21,8 +21,11 @@ public static class InfrastructureServiceCollectionExtensions
     private const string SteamCommunityBaseUrl = "https://steamcommunity.com/";
     private const string SkinportBaseUrl = "https://api.skinport.com/";
 
-    // A descriptive User-Agent is polite and helps avoid being treated as an anonymous bot.
-    private const string UserAgent = "CStoValuation/1.0 (+https://github.com/)";
+    // Steam and Skinport sit behind bot-protection (Akamai / Cloudflare) that scrutinises the
+    // User-Agent. A realistic desktop-browser UA avoids being flagged as an anonymous script.
+    private const string UserAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+        "Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0";
 
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, string sqliteConnectionString)
@@ -66,6 +69,8 @@ public static class InfrastructureServiceCollectionExtensions
             {
                 client.BaseAddress = new Uri(SkinportBaseUrl);
                 client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+                client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
             })
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
             {
@@ -86,5 +91,7 @@ public static class InfrastructureServiceCollectionExtensions
     {
         client.BaseAddress = new Uri(SteamCommunityBaseUrl);
         client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json, text/javascript, */*; q=0.01");
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en-US,en;q=0.9");
     }
 }

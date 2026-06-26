@@ -14,9 +14,14 @@ internal static partial class SteamOpenId
     public const string LoginEndpoint = "https://steamcommunity.com/openid/login";
 
     // We never run a server at these URLs: the WebView2 host intercepts the redirect to
-    // ReturnTo and reads the query directly. Realm/return only need to be well-formed.
-    public const string Realm = "https://localhost/";
-    public const string ReturnTo = "https://localhost/cs2valuator/openid-return";
+    // ReturnTo and reads the query directly, cancelling navigation before it loads.
+    //
+    // The host uses the reserved ".invalid" TLD (RFC 2606): it is guaranteed never to resolve,
+    // so the assertion can never leak to a real server even if interception ever failed. Note
+    // we deliberately do NOT use "localhost"/"127.0.0.1" — Steam's Akamai WAF returns an
+    // "Access Denied" page for OpenID requests whose return URL is loopback.
+    public const string Realm = "https://cs2valuator.invalid/";
+    public const string ReturnTo = "https://cs2valuator.invalid/openid-return";
 
     private const string OpenIdNamespace = "http://specs.openid.net/auth/2.0";
     private const string IdentifierSelect = "http://specs.openid.net/auth/2.0/identifier_select";

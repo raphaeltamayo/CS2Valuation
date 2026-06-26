@@ -35,6 +35,10 @@ internal sealed partial class MainViewModel : ObservableObject
 
     private string? _lastResolvedId;
 
+    // Per-load flags that shape the final status message (set during a load, read at the end).
+    private bool _loadedFromCache;
+    private bool _pricesUnavailable;
+
     [ObservableProperty]
     private ValuedItemViewModel? _selectedItem;
 
@@ -143,6 +147,8 @@ internal sealed partial class MainViewModel : ObservableObject
         IsBusy = true;
         ErrorMessage = null;
         IsPrivateInventoryError = false;
+        _loadedFromCache = false;
+        _pricesUnavailable = false;
 
         try
         {
@@ -169,7 +175,16 @@ internal sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            ErrorMessage = "Couldn't reach Steam or Skinport. Check your connection and try again.";
+            // Skinport failures are handled inside FetchPricesAsync, so reaching here means
+            // Steam itself was unreachable (down, rate-limiting, or blocked on this network).
+            ErrorMessage =
+                "Couldn't reach Steam. It may be down, rate-limiting requests, or blocked on " +
+                "your network. Please try again in a moment.";
+        }
+        catch (Exception)
+        {
+            // Last-resort guard: never let an unexpected error escape into an unhandled crash.
+            ErrorMessage = "Something went wrong while loading your inventory. Please try again.";
         }
         finally
         {
@@ -204,7 +219,7 @@ internal sealed partial class MainViewModel : ObservableObject
                 throw;
             }
 
-            StatusMessage = "Offline — showing your last cached inventory.";
+            _loadedFromCache = true;
             return cached;
         }
     }
@@ -216,10 +231,11 @@ internal sealed partial class MainViewModel : ObservableObject
             StatusMessage = "Fetching market prices from Skinport…";
             return await _priceService.GetPricesAsync(Currency);
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception)
         {
-            // Without prices we still show the inventory, just unvalued.
-            StatusMessage = "Prices are unavailable right now — showing items without valuation.";
+            // Prices are non-essential: any failure (HTTP error, timeout, circuit-breaker,
+            // unexpected body) degrades to an unpriced — but still visible — inventory.
+            _pricesUnavailable = true;
             return new Dictionary<string, PriceQuote>();
         }
     }
@@ -234,13 +250,24 @@ internal sealed partial class MainViewModel : ObservableObject
 
         ItemsView.Refresh();
         Summary = SummaryViewModel.FromValuation(valuation);
+        StatusMessage = BuildStatusMessage(valuation);
+    }
 
-        if (StatusMessage is null || !StatusMessage.StartsWith("Offline", StringComparison.Ordinal))
+    private string BuildStatusMessage(InventoryValuation valuation)
+    {
+        if (valuation.Items.Count == 0)
         {
-            StatusMessage = valuation.Items.Count == 0
-                ? "This inventory is empty."
-                : $"Valued {valuation.PricedCount} of {valuation.Items.Count} items.";
+            return "This inventory is empty.";
         }
+
+        if (_pricesUnavailable)
+        {
+            return "Inventory loaded, but Skinport prices are unavailable " +
+                   "(it may be blocked on your network) — showing items unvalued.";
+        }
+
+        var summary = $"Valued {valuation.PricedCount} of {valuation.Items.Count} items.";
+        return _loadedFromCache ? $"Offline — showing your last cached inventory. {summary}" : summary;
     }
 
     private void ShowPrivateInventoryError()
