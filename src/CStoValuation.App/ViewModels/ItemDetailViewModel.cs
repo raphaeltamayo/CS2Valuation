@@ -11,64 +11,66 @@ using SkiaSharp;
 
 namespace CStoValuation.App.ViewModels;
 
+/// <summary>A selectable look-back window for the price chart.</summary>
+internal sealed record HistoryRange(int Days, string Label)
+{
+    public override string ToString() => Label;
+}
+
 /// <summary>
-/// Drives the item-detail panel: the selected item's Skinport gross/net, an on-demand Steam
-/// Market second price plus trade volume (liquidity), and a LiveCharts2 line chart of its
-/// recorded price history.
+/// Drives the item-detail panel: Skinport gross/net, an on-demand Steam Market second price plus
+/// trade volume, and a price chart. The chart prefers Steam's real day-by-day history (when the
+/// user is signed in) filtered to the selected window; otherwise it falls back to the coarse
+/// trend from Skinport's trailing-window sales history.
 /// </summary>
 internal sealed partial class ItemDetailViewModel : ObservableObject
 {
     private const string Currency = "EUR";
-    private static readonly TimeSpan HistoryWindow = TimeSpan.FromDays(30);
+    private static readonly SKColor AccentColor = SKColor.Parse("#4B8BF5");
+    private static readonly SKColor MutedColor = SKColor.Parse("#9AA1AD");
 
+    private readonly ISteamMarketHistoryService _historyService;
     private readonly ISteamMarketPriceService _steamMarketService;
-    private readonly IPriceSnapshotRepository _snapshotRepository;
     private readonly TimeProvider _timeProvider;
 
-    [ObservableProperty]
-    private bool _hasSelection;
+    private IReadOnlyList<PriceHistoryPoint> _fullHistory = [];
+    private ItemSalesHistory? _salesHistory;
+    private bool _hasRealHistory;
 
-    [ObservableProperty]
-    private string? _name;
-
-    [ObservableProperty]
-    private string? _imageUrl;
-
-    [ObservableProperty]
-    private string _skinportGrossText = MoneyFormatter.Placeholder;
-
-    [ObservableProperty]
-    private string _skinportNetText = MoneyFormatter.Placeholder;
-
-    [ObservableProperty]
-    private string _steamPriceText = MoneyFormatter.Placeholder;
-
-    [ObservableProperty]
-    private string _steamVolumeText = MoneyFormatter.Placeholder;
-
-    [ObservableProperty]
-    private bool _isLoadingSteamPrice;
-
-    [ObservableProperty]
-    private bool _hasHistory;
-
-    [ObservableProperty]
-    private ISeries[] _series = [];
+    [ObservableProperty] private bool _hasSelection;
+    [ObservableProperty] private string? _name;
+    [ObservableProperty] private string? _imageUrl;
+    [ObservableProperty] private string _skinportGrossText = MoneyFormatter.Placeholder;
+    [ObservableProperty] private string _skinportNetText = MoneyFormatter.Placeholder;
+    [ObservableProperty] private string _steamPriceText = MoneyFormatter.Placeholder;
+    [ObservableProperty] private string _steamVolumeText = MoneyFormatter.Placeholder;
+    [ObservableProperty] private bool _isLoadingSteamPrice;
+    [ObservableProperty] private bool _hasHistory;
+    [ObservableProperty] private ISeries[] _series = [];
+    [ObservableProperty] private HistoryRange _selectedRange;
 
     public ItemDetailViewModel(
+        ISteamMarketHistoryService historyService,
         ISteamMarketPriceService steamMarketService,
-        IPriceSnapshotRepository snapshotRepository,
         TimeProvider? timeProvider = null)
     {
+        _historyService = historyService;
         _steamMarketService = steamMarketService;
-        _snapshotRepository = snapshotRepository;
         _timeProvider = timeProvider ?? TimeProvider.System;
 
+        _selectedRange = Ranges[1]; // default to 30 days
         XAxes = [BuildDateAxis()];
         YAxes = [BuildPriceAxis()];
     }
 
-    // Axes are configured once; only their data (Series) changes per selection.
+    public IReadOnlyList<HistoryRange> Ranges { get; } =
+    [
+        new(7, "7D"),
+        new(30, "30D"),
+        new(90, "90D"),
+        new(365, "1Y"),
+    ];
+
     public Axis[] XAxes { get; }
 
     public Axis[] YAxes { get; }
@@ -87,39 +89,73 @@ internal sealed partial class ItemDetailViewModel : ObservableObject
         ImageUrl = item.ImageUrl;
         SkinportGrossText = item.UnitGrossText;
         SkinportNetText = item.UnitNetText;
+        _salesHistory = salesHistory;
 
-        await LoadHistoryAsync(item.Name, salesHistory);
+        await LoadHistoryAsync(item.Name);
         await LoadSteamMarketAsync(item.Name);
     }
 
-    private async Task LoadHistoryAsync(string marketHashName, ItemSalesHistory? salesHistory)
+    partial void OnSelectedRangeChanged(HistoryRange value) => RebuildSeries();
+
+    private async Task LoadHistoryAsync(string marketHashName)
     {
-        // Prefer the app's own fine-grained snapshots once it has accumulated a couple; until
-        // then, fall back to the instant trend from Skinport's trailing-window sales history.
-        var since = _timeProvider.GetUtcNow() - HistoryWindow;
-        var snapshots = await _snapshotRepository.GetHistoryAsync(marketHashName, since);
+        try
+        {
+            _fullHistory = await _historyService.GetPriceHistoryAsync(marketHashName, Currency);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _fullHistory = [];
+        }
 
-        var points = snapshots.Count >= 2
-            ? snapshots.Select(p => new DateTimePoint(p.DateUtc.UtcDateTime, (double)p.Price)).ToArray()
-            : BuildTrendPoints(salesHistory);
+        _hasRealHistory = _fullHistory.Count >= 2;
+        RebuildSeries();
+    }
 
+    private void RebuildSeries()
+    {
+        var points = _hasRealHistory ? PointsForWindow() : BuildTrendPoints(_salesHistory);
         HasHistory = points.Length >= 2;
+
         Series =
         [
             new LineSeries<DateTimePoint>
             {
                 Values = points,
-                Name = marketHashName,
-                GeometrySize = 4,
-                Fill = null,
-                Stroke = new SolidColorPaint(SKColor.Parse("#4B8BF5")) { StrokeThickness = 2 },
+                LineSmoothness = 0.3,
+                GeometrySize = points.Length <= 8 ? 5 : 0,
+                Stroke = new SolidColorPaint(AccentColor) { StrokeThickness = 2 },
+                Fill = new SolidColorPaint(AccentColor.WithAlpha(36)),
+                GeometryStroke = new SolidColorPaint(AccentColor) { StrokeThickness = 2 },
+                GeometryFill = new SolidColorPaint(AccentColor),
+                YToolTipLabelFormatter = point =>
+                {
+                    var date = new DateTime((long)point.Coordinate.SecondaryValue);
+                    return $"{MoneyFormatter.Format((decimal)point.Coordinate.PrimaryValue, Currency)}  ·  {date:MMM dd, yyyy}";
+                },
             },
         ];
     }
 
+    private DateTimePoint[] PointsForWindow()
+    {
+        var since = _timeProvider.GetUtcNow() - TimeSpan.FromDays(SelectedRange.Days);
+        var windowed = _fullHistory.Where(point => point.DateUtc >= since).ToList();
+
+        // If the chosen window is too sparse, show whatever history we have rather than a blank.
+        if (windowed.Count < 2)
+        {
+            windowed = [.. _fullHistory];
+        }
+
+        return windowed
+            .Select(point => new DateTimePoint(point.DateUtc.UtcDateTime, (double)point.Price))
+            .ToArray();
+    }
+
     /// <summary>
-    /// Turns Skinport's trailing windows into a coarse 4-point trend (≈90d, 30d, 7d, now),
-    /// using each window's average (median as a fallback). Points with no sales are skipped.
+    /// Fallback when no signed-in history is available: a coarse 4-point trend (≈90d, 30d, 7d, now)
+    /// from Skinport's trailing-window averages (median as a fallback). Points with no sales drop out.
     /// </summary>
     private DateTimePoint[] BuildTrendPoints(ItemSalesHistory? salesHistory)
     {
@@ -176,14 +212,16 @@ internal sealed partial class ItemDetailViewModel : ObservableObject
     {
         Labeler = value => new DateTime((long)value).ToString("MMM dd"),
         UnitWidth = TimeSpan.FromDays(1).Ticks,
-        LabelsPaint = new SolidColorPaint(SKColor.Parse("#9AA1AD")),
+        LabelsPaint = new SolidColorPaint(MutedColor),
         TextSize = 11,
+        SeparatorsPaint = null, // no vertical gridlines
     };
 
     private static Axis BuildPriceAxis() => new()
     {
-        Labeler = value => value.ToString("N0"),
-        LabelsPaint = new SolidColorPaint(SKColor.Parse("#9AA1AD")),
+        Labeler = value => MoneyFormatter.Format((decimal)value, Currency),
+        LabelsPaint = new SolidColorPaint(MutedColor),
         TextSize = 11,
+        SeparatorsPaint = new SolidColorPaint(SKColor.Parse("#2A2E36")) { StrokeThickness = 1 },
     };
 }

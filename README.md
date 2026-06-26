@@ -32,9 +32,11 @@ _Screenshots live in [`docs/`](docs/) — run the app (below) and add `overview.
 - **Sort & filter** the holdings; unpriced items are shown honestly as `—`.
 - **Caches** to local SQLite for instant startup and an **offline fallback**; manual **Refresh**.
 - **Price history & movers, instantly**: a single Skinport *sales-history* call (trailing
-  24h/7d/30d/90d windows) powers a per-item **price trend chart** (LiveCharts2) and a
-  **biggest-movers** ranking with no waiting. A background service also records fine-grained
-  snapshots over time, which the chart prefers once enough have accumulated.
+  24h/7d/30d/90d windows) powers a **biggest-movers** ranking — selectable by % change, per-unit
+  value, or total (per-unit × quantity) value — with no waiting. When signed in through Steam,
+  the per-item chart shows Steam's **real day-by-day price history** (authenticated
+  `pricehistory` endpoint) with a selectable window (7D/30D/90D/1Y); otherwise it falls back to
+  the coarse Skinport trend.
 - **Second opinion on demand**: the detail panel also pulls the **Steam Market** price + trade
   **volume** (a liquidity signal) for the selected item.
 - Friendly, actionable error when an inventory is **private**.

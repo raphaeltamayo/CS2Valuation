@@ -39,6 +39,9 @@ public static class InfrastructureServiceCollectionExtensions
         // System clock by default; tests substitute a fake. TryAdd keeps a test override intact.
         services.TryAddSingleton(TimeProvider.System);
 
+        // Holds the Steam web session captured at sign-in (enables authenticated price history).
+        services.AddSingleton<ISteamSession, SteamSession>();
+
         AddHttpClients(services);
 
         // Pure domain logic — no state, safe to share as a singleton.
@@ -60,6 +63,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddHttpClient<ISteamIdResolver, SteamIdResolver>(ConfigureSteamClient);
         services.AddHttpClient<ISteamInventoryService, SteamInventoryService>(ConfigureSteamClient);
         services.AddHttpClient<ISteamMarketPriceService, SteamMarketPriceService>(ConfigureSteamClient);
+        services.AddHttpClient<ISteamMarketHistoryService, SteamMarketHistoryService>(ConfigureSteamClient);
 
         // Skinport requires Brotli (it returns 406 otherwise), so we configure automatic
         // decompression on the primary handler and add the standard retry/timeout/circuit

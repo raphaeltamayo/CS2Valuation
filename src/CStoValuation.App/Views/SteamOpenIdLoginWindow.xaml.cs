@@ -26,6 +26,9 @@ internal partial class SteamOpenIdLoginWindow : Window
     /// <summary>The resolved SteamID64 once sign-in succeeds; null until then.</summary>
     public string? SteamId64 { get; private set; }
 
+    /// <summary>The captured steamcommunity.com cookies (for authenticated calls), if any.</summary>
+    public string? CookieHeader { get; private set; }
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
         try
@@ -66,14 +69,35 @@ internal partial class SteamOpenIdLoginWindow : Window
         e.Cancel = true;
 
         var steamId = SteamOpenId.ExtractSteamId(uri);
-        DialogResult = steamId is not null && await SteamOpenId.VerifyAsync(uri, HttpClient, CancellationToken.None)
-            ? AcceptIdentity(steamId)
-            : false;
+        if (steamId is not null && await SteamOpenId.VerifyAsync(uri, HttpClient, CancellationToken.None))
+        {
+            SteamId64 = steamId;
+            await CaptureSessionCookiesAsync();
+            DialogResult = true;
+        }
+        else
+        {
+            DialogResult = false;
+        }
     }
 
-    private bool AcceptIdentity(string steamId)
+    /// <summary>
+    /// Reads the steamcommunity.com cookies the browser holds after a successful login so the app
+    /// can make authenticated calls (the Market price-history endpoint needs a logged-in session).
+    /// </summary>
+    private async Task CaptureSessionCookiesAsync()
     {
-        SteamId64 = steamId;
-        return true;
+        try
+        {
+            var cookies = await LoginBrowser.CoreWebView2.CookieManager
+                .GetCookiesAsync("https://steamcommunity.com");
+            CookieHeader = string.Join(
+                "; ",
+                cookies.Where(c => !string.IsNullOrEmpty(c.Value)).Select(c => $"{c.Name}={c.Value}"));
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException)
+        {
+            CookieHeader = null;
+        }
     }
 }

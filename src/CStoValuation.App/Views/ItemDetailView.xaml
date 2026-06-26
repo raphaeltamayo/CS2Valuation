@@ -70,8 +70,18 @@
                 </Grid>
 
                 <!-- Price history chart -->
-                <TextBlock Text="PRICE TREND" FontSize="11" Margin="0,18,0,6"
-                           Foreground="{StaticResource MutedTextBrush}" />
+                <Grid Margin="0,18,0,6">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Grid.Column="0" Text="PRICE TREND" FontSize="11" VerticalAlignment="Center"
+                               Foreground="{StaticResource MutedTextBrush}" />
+                    <ComboBox Grid.Column="1" Width="72"
+                              ItemsSource="{Binding Ranges}"
+                              SelectedItem="{Binding SelectedRange}"
+                              ToolTip="Chart look-back window (uses Steam daily history when signed in)" />
+                </Grid>
 
                 <Grid Height="200">
                     <lvc:CartesianChart x:Name="TrendChart"
