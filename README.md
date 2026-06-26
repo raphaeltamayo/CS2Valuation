@@ -1,123 +1,62 @@
 # CS2 Inventory Valuator
 
-A small Windows desktop app (WPF / .NET 8) that connects to a Steam account, imports its
-public **Counter-Strike 2** inventory, and **marks it to market** — showing both the gross
-market value and the realistic, **net-of-fees** value you'd actually walk away with.
+A small Windows desktop app that connects to a Steam account, pulls in its public
+Counter-Strike 2 inventory and works out what it is actually worth. It shows the market value
+of everything you own and, more usefully, what you would really walk away with after
+marketplace fees.
 
-> **Why this project?** A CS2 skin inventory is a real speculative market. Valuing it touches the
-> same core jobs as a trading/portfolio system: value holdings, mark to market, account for fees
-> and liquidity, watch prices over time, and surface the biggest movers. It's a compact way to
-> demonstrate both **modern .NET desktop engineering** and a grasp of **finance fundamentals**.
-
----
-
-## Screenshots
-
-<!-- Capture these on first run and drop them in docs/. -->
-<!-- ![Overview](docs/overview.png) -->
-<!-- ![Item detail & price history](docs/item-detail.png) -->
-
-_Screenshots live in [`docs/`](docs/) — run the app (below) and add `overview.png` and
-`item-detail.png`._
-
----
+I built it as a portfolio piece. A CS2 skin inventory behaves a lot like a small trading
+portfolio, so it is a nice way to show both a modern .NET desktop app and a bit of finance
+thinking. You value the holdings, mark them to market, account for fees and liquidity, and keep
+an eye on how prices move over time.
 
 ## What it does
 
-- **Connect** by pasting a SteamID64 / profile URL / custom URL, **or** with a polished
-  **“Sign in through Steam”** OpenID flow (embedded WebView2).
-- **Auto-imports** the inventory (images, quantities, rarity/exterior/weapon metadata).
-- **Values every item** against live **Skinport** prices, showing **gross** and **net-of-fees**
-  per line and a prominent **portfolio total**.
-- **Sort & filter** the holdings; unpriced items are shown honestly as `—`.
-- **Caches** to local SQLite for instant startup and an **offline fallback**; manual **Refresh**.
-- **Price history & movers, instantly**: a single Skinport *sales-history* call (trailing
-  24h/7d/30d/90d windows) powers a **biggest-movers** ranking — selectable by % change, per-unit
-  value, or total (per-unit × quantity) value — with no waiting. When signed in through Steam,
-  the per-item chart shows Steam's **real day-by-day price history** (authenticated
-  `pricehistory` endpoint) with a selectable window (7D/30D/90D/1Y); otherwise it falls back to
-  the coarse Skinport trend.
-- **Second opinion on demand**: the detail panel also pulls the **Steam Market** price + trade
-  **volume** (a liquidity signal) for the selected item.
-- Friendly, actionable error when an inventory is **private**.
+You paste a SteamID or a profile URL, or sign in through Steam, and the app imports your
+inventory with images and quantities. It prices everything against live Skinport data and shows
+a big headline number for the whole inventory, both the gross market value and the net value
+after fees. You can sort and filter the list, and click any item to see more detail: the
+Skinport price, a second price and trade volume from the Steam Market, and a price chart. There
+is also a biggest movers panel that ranks your items by how much they have moved recently, and
+you can switch between ranking by percentage, by per item value or by total value.
 
-## Market concepts modeled
+Everything is cached to a local SQLite database, so the app opens straight away with your last
+inventory and still works when the network is down. If an inventory is private it tells you how
+to make it public instead of just failing.
 
-| Concept | Where it shows up |
-| --- | --- |
-| Mark-to-market valuation | Whole-inventory valuation against current prices |
-| **Gross vs. net** (transaction fees / realizable value) | `FeeModel`, per-line and total net |
-| Liquidity | Skinport listing counts + Steam Market trade volume |
-| Multi-source pricing / spread | Skinport (bulk) vs. Steam Market (on-demand) |
-| Time-series & momentum | Recorded price history + “biggest movers” (% change) |
+## How it is built
 
-> Cost-basis P&L (realized/unrealized gains vs. what you paid) is a documented future phase.
+There are four projects. Core holds the domain model and the valuation logic and depends on
+nothing else. Infrastructure has the HTTP clients for Steam and Skinport, the EF Core and SQLite
+data layer, and a small background service that records prices over time. App is the WPF user
+interface, written with the MVVM pattern using CommunityToolkit.Mvvm and wired together with
+dependency injection through the generic host. There is also a test project. Dependencies only
+point inwards, which keeps the domain clean and easy to test.
 
-## Architecture
+A couple of notes on where the data comes from. Skinport gives current prices and recent sales
+history, each in a single bulk call, so valuations and movers are available right away. The
+Steam Market is queried one item at a time, only when you open an item, because it is heavily
+rate limited. The day by day price chart comes from Steam's own price history, which only
+answers when you are signed in, so the app reuses the session from the sign in window for those
+requests.
 
-A clean, layered solution — dependencies point inward only:
+## Running it
+
+You need the .NET SDK (the version is pinned in global.json) on Windows, plus the WebView2
+runtime for the Steam sign in window, which is already installed on most Windows 10 and 11
+machines.
 
 ```
-CStoValuation.Core            net8.0          domain models, enums, service contracts, pure valuation
-        ▲
-CStoValuation.Infrastructure  net8.0          HTTP clients (Steam, Skinport), EF Core/SQLite, repos,
-        ▲                                      background snapshot service
-CStoValuation.App             net8.0-windows  WPF views + view-models (MVVM), DI host, OpenID window
-CStoValuation.Tests           net8.0          xUnit + Moq
-```
-
-- **Core** has no dependencies; it defines the interfaces the outer layers implement
-  (dependency inversion). The valuation logic is pure and the most heavily unit-tested code.
-- **Infrastructure** owns all I/O: typed `HttpClient`s (Brotli + resilience for Skinport),
-  EF Core with a SQLite database under `%AppData%/CStoValuation/`, and the hosted snapshot service.
-- **App** is WPF + MVVM (CommunityToolkit.Mvvm), composed by the generic `Host` so it gets
-  constructor injection and hosted services just like ASP.NET Core.
-
-## Tech stack
-
-.NET 8 · WPF · C# 12 · CommunityToolkit.Mvvm · Microsoft.Extensions.Hosting & DI ·
-Microsoft.Extensions.Http.Resilience · EF Core 8 + SQLite · LiveChartsCore (SkiaSharp) ·
-Microsoft.Web.WebView2 · xUnit + Moq. Nullable reference types and **warnings-as-errors** on.
-
-## Build, run, test
-
-Prerequisites: the .NET SDK (see [`global.json`](global.json)) on Windows, and the
-[WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (preinstalled on
-current Windows 10/11) for the Steam sign-in window.
-
-```bash
-# from the repository root
 dotnet build CStoValuation.sln
 dotnet test
 dotnet run --project src/CStoValuation.App
 ```
 
-In the app, paste a **public** SteamID64 or profile URL and click **Connect** (or use
-**Sign in through Steam**). If an inventory is private, the app explains how to make it public:
-Steam → *Profile → Edit Profile → Privacy Settings → Game details: Public*.
-
-### Database migrations
-
-The database is created/updated automatically at startup. To add a schema change:
-
-```bash
-dotnet tool restore   # restores the pinned dotnet-ef local tool
-dotnet ef migrations add <Name> --project src/CStoValuation.Infrastructure --output-dir Persistence/Migrations
-```
-
-## Configuration
-
-- **Currency** defaults to **EUR** (Skinport's native currency; Steam currency id 3) and is
-  centralized for easy change.
-- **Seller fee** defaults to **8%** via `FeeModel`, the single source of truth for the gross→net
-  relationship.
+Paste a public SteamID or profile URL and click Connect, or use Sign in through Steam. The
+default currency is EUR and the seller fee defaults to 8 percent, both of which live in one
+place and are easy to change.
 
 ## Continuous integration
 
-Every push / PR builds the whole solution and runs the tests on `windows-latest`
-(warnings are errors) — see [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
-## Roadmap
-
-- **Phase 2** — catalogue browser (price any item, not just owned).
-- **Phase 4** — cost-basis P&L, simple arbitrage across venues, CSV export.
+Every push and pull request builds the whole solution and runs the tests on Windows through
+GitHub Actions.
