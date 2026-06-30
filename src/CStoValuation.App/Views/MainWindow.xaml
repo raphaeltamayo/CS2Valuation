@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:behaviors="clr-namespace:CStoValuation.App.Behaviors"
         xmlns:views="clr-namespace:CStoValuation.App.Views"
         xmlns:vm="clr-namespace:CStoValuation.App.ViewModels"
         mc:Ignorable="d"
@@ -93,6 +94,34 @@
                     <TextBlock Text="GROSS (MARKET)" FontSize="11"
                                Foreground="{StaticResource MutedTextBrush}" />
                     <TextBlock Text="{Binding Summary.TotalGrossText}" FontSize="20" FontWeight="SemiBold" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Bottom"
+                            Margin="40,0,0,4" DataContext="{Binding Summary.TopHolding}">
+                    <Image behaviors:ImageLoader.SourceUrl="{Binding ImageUrl}"
+                           Width="64" Height="40" Stretch="Uniform" VerticalAlignment="Center" />
+                    <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="TOP HOLDING" FontSize="11"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                        <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis" MaxWidth="260" />
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding LineNetText}" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="{StaticResource PositiveBrush}" />
+                            <TextBlock Text=" net" FontSize="12" Foreground="{StaticResource MutedTextBrush}"
+                                       VerticalAlignment="Bottom" />
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
                 </StackPanel>
 
                 <StackPanel Grid.Column="4" VerticalAlignment="Bottom" Margin="0,0,0,6"

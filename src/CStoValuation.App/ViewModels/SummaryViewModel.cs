@@ -1,5 +1,6 @@
 using CStoValuation.App.Presentation;
 using CStoValuation.Core.Models;
+using CStoValuation.Core.Services;
 
 namespace CStoValuation.App.ViewModels;
 
@@ -13,6 +14,9 @@ internal sealed class SummaryViewModel
         ItemCount = valuation.Items.Count;
         PricedCount = valuation.PricedCount;
         UnpricedCount = valuation.UnpricedCount;
+
+        var top = PortfolioInsights.MostValuable(valuation.Items);
+        TopHolding = top is null ? null : new ValuedItemViewModel(top, valuation.Currency);
     }
 
     public string Currency { get; }
@@ -21,6 +25,7 @@ internal sealed class SummaryViewModel
     public int ItemCount { get; }
     public int PricedCount { get; }
     public int UnpricedCount { get; }
+    public ValuedItemViewModel? TopHolding { get; }
 
     public string CountsText => $"{ItemCount} items · {PricedCount} priced · {UnpricedCount} unpriced";
 
